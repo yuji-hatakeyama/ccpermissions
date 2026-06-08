@@ -11,8 +11,9 @@ import json
 import os
 import subprocess
 import sys
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Optional, Sequence, Union
+from typing import Optional, Union
 
 import pytest
 
@@ -73,7 +74,9 @@ def assert_decision(
         assert "permissionDecisionReason" not in hso
         return
     reason = hso.get("permissionDecisionReason", "")
-    needles = [reason_contains] if isinstance(reason_contains, str) else list(reason_contains)
+    needles = (
+        [reason_contains] if isinstance(reason_contains, str) else list(reason_contains)
+    )
     for needle in needles:
         assert needle in reason, f"expected {needle!r} in reason {reason!r}"
 

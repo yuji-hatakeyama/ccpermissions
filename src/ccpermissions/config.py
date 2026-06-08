@@ -10,7 +10,7 @@ import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Final, Optional, cast
+from typing import Final, cast
 
 from .decide import ACTIONS, Action, CompiledRule, Matcher
 
@@ -28,7 +28,7 @@ class _ParsedFile:
     """One config file after successful parsing."""
 
     rules: tuple[CompiledRule, ...] = ()
-    default: Optional[Action] = None
+    default: Action | None = None
 
 
 @dataclass(frozen=True)
@@ -53,13 +53,11 @@ class LoadResult:
 
     rules: tuple[CompiledRule, ...] = ()
     default: Action = "ask"
-    error: Optional[str] = None
+    error: str | None = None
 
     def __post_init__(self) -> None:
         if self.error is not None and (self.rules or self.default != "ask"):
-            raise ValueError(
-                "LoadResult with error must have rules=() and default='ask'"
-            )
+            raise ValueError("LoadResult with error must have rules=() and default='ask'")
 
 
 def user_config_path() -> Path:
@@ -78,7 +76,7 @@ def user_config_path() -> Path:
     return Path.home() / ".claude" / "ccpermissions.yaml"
 
 
-def project_config_path() -> Optional[Path]:
+def project_config_path() -> Path | None:
     """Resolve the project-scoped config path.
 
     Returns:
@@ -98,7 +96,7 @@ def _expected_actions() -> str:
 
 # Lazily built and cached: importing PyYAML and registering the constructor
 # is deferred so a fresh install with no config file never pays for it.
-_unique_key_loader: Optional[type] = None
+_unique_key_loader: type | None = None
 
 
 def _build_unique_key_loader():
@@ -168,7 +166,7 @@ def _parse(text: str, source: Path) -> _ParsedFile:
     try:
         data = yaml.load(text, Loader=_build_unique_key_loader())
     except yaml.YAMLError as e:
-        raise _ConfigError(f"{source}: YAML parse error: {e}")
+        raise _ConfigError(f"{source}: YAML parse error: {e}") from e
 
     if data is None:
         raise _ConfigError(f"{source}: file is empty; 'version: 1' is required")
@@ -188,7 +186,7 @@ def _parse(text: str, source: Path) -> _ParsedFile:
             f"(expected integer 1, got {type(version).__name__})"
         )
 
-    default: Optional[Action] = None
+    default: Action | None = None
     if "default" in data:
         d = data["default"]
         if d not in ACTIONS:
@@ -259,9 +257,7 @@ def _compile_matchers(
         )
     if not value and not allow_empty:
         raise _ConfigError(f"{source}: rules[{i}].{field} must not be empty")
-    return tuple(
-        _compile_matcher(el, source, i, field, j) for j, el in enumerate(value)
-    )
+    return tuple(_compile_matcher(el, source, i, field, j) for j, el in enumerate(value))
 
 
 def _compile_matcher(el: object, source: Path, i: int, field: str, j: int) -> Matcher:
@@ -294,7 +290,7 @@ def _compile_matcher(el: object, source: Path, i: int, field: str, j: int) -> Ma
             raise _ConfigError(
                 f"{source}: rules[{i}].{field}[{j}] regex {pat!r} failed to "
                 f"compile: {str(e).splitlines()[0]}"
-            )
+            ) from e
         return Matcher(raw=pat, pattern=compiled)
     raise _ConfigError(
         f"{source}: rules[{i}].{field}[{j}] must be a string or {{regex: '...'}}, "
@@ -302,7 +298,7 @@ def _compile_matcher(el: object, source: Path, i: int, field: str, j: int) -> Ma
     )
 
 
-def _load_one(path: Path) -> Optional[_ParsedFile]:
+def _load_one(path: Path) -> _ParsedFile | None:
     """Read and parse a single config file.
 
     Args:
@@ -320,9 +316,9 @@ def _load_one(path: Path) -> Optional[_ParsedFile]:
     except FileNotFoundError:
         return None
     except UnicodeDecodeError as e:
-        raise _ConfigError(f"{path}: file is not valid UTF-8: {e}")
+        raise _ConfigError(f"{path}: file is not valid UTF-8: {e}") from e
     except OSError as e:
-        raise _ConfigError(f"{path}: read error: {e}")
+        raise _ConfigError(f"{path}: read error: {e}") from e
     return _parse(text, path)
 
 
@@ -334,11 +330,11 @@ class _SafeLoad:
     that case means "contribute nothing to the merge" rather than failure.
     """
 
-    parsed: Optional[_ParsedFile] = None
-    error: Optional[str] = None
+    parsed: _ParsedFile | None = None
+    error: str | None = None
 
 
-def _safe_load(path: Optional[Path]) -> _SafeLoad:
+def _safe_load(path: Path | None) -> _SafeLoad:
     """Wrap `_load_one` so callers don't need a try/except per file.
 
     Catches the documented `_ConfigError`, plus any unexpected exception, so
@@ -355,9 +351,7 @@ def _safe_load(path: Optional[Path]) -> _SafeLoad:
         return _SafeLoad(error=f"{path}: unexpected load error: {e}")
 
 
-def _resolve_default(
-    user: Optional[_ParsedFile], project: Optional[_ParsedFile]
-) -> Action:
+def _resolve_default(user: _ParsedFile | None, project: _ParsedFile | None) -> Action:
     """Pick the default action: project, then user, then `"ask"`."""
     if project is not None and project.default is not None:
         return project.default

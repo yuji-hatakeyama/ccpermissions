@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 import sys
-from typing import IO, Any, Optional
+from typing import IO, Any
 
 from .aggregate import AggregateResult, aggregate
 from .config import LoadResult, load_merged
@@ -57,7 +57,7 @@ def _extract_command(payload: Any) -> str:
     return command
 
 
-def _format_output(result: AggregateResult, error: Optional[str]) -> str:
+def _format_output(result: AggregateResult, error: str | None) -> str:
     """Build the PreToolUse `hookSpecificOutput` JSON string.
 
     Reason precedence:
@@ -123,8 +123,8 @@ def _run(stdin: IO[str], stdout: IO[str]) -> None:
 
 
 def main(
-    stdin: Optional[IO[str]] = None,
-    stdout: Optional[IO[str]] = None,
+    stdin: IO[str] | None = None,
+    stdout: IO[str] | None = None,
 ) -> int:
     """Run the PreToolUse hook body.
 

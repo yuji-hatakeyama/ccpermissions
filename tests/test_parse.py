@@ -156,7 +156,7 @@ def test_parse_failure_yields_single_unanalyzable():
 
 
 def test_case_statement_falls_back_to_unanalyzable():
-    """bashlex raises NotImplementedError for ``case ... esac`` — treat as unanalyzable."""
+    """bashlex raises NotImplementedError for ``case ... esac`` — unanalyzable."""
     result = enumerate_commands("case x in a) ls;; esac")
     assert len(result) == 1
     assert result[0].unanalyzable is True
@@ -187,7 +187,7 @@ def test_eval_with_literal_var_unwraps_to_inner_var():
 
 
 def test_long_unanalyzable_input_is_truncated():
-    """An overlong unparseable input is capped — ``permissionDecisionReason`` stays single-line."""
+    """Overlong unparseable input is capped so the reason stays single-line."""
     long_input: str = "echo )))" + ("x" * 500)
     result = enumerate_commands(long_input)
     assert len(result) == 1 and result[0].unanalyzable
@@ -270,7 +270,7 @@ def test_eval_quoted_command_string_is_unwrapped():
 def test_eval_with_multi_word_concatenation_is_unwrapped():
     """``eval rm -rf /`` (no quoting) is also bash-equivalent to running the
     joined args; our unwrap walks the joined string."""
-    result = enumerate_commands("eval rm -rf /")
+    enumerate_commands("eval rm -rf /")
     assert "rm -rf /" in texts(enumerate_commands("eval rm -rf /"))
 
 
@@ -284,5 +284,3 @@ def test_eval_quoted_string_inner_tokens_split_for_matching():
     result = enumerate_commands("eval 'rm -rf /'")
     inner = next(c for c in result if c.text == "rm -rf /")
     assert inner.argv == ("rm", "-rf", "/")
-
-

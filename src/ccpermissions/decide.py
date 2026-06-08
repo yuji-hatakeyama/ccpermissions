@@ -9,8 +9,9 @@ is reduced to its argv (token list) by the parsing layer; a rule fires when
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Final, Iterable, Literal, Optional, Sequence, get_args
+from typing import Final, Literal, get_args
 
 Action = Literal["allow", "ask", "deny"]
 ACTIONS: Final[tuple[Action, ...]] = get_args(Action)
@@ -35,7 +36,7 @@ class Matcher:
     """
 
     raw: str
-    pattern: Optional[re.Pattern[str]] = None
+    pattern: re.Pattern[str] | None = None
 
     def matches(self, token: str) -> bool:
         """True when `token` satisfies this matcher (exact eq, or regex search)."""
@@ -99,7 +100,7 @@ class Decision:
     """
 
     action: Action
-    matched_rule: Optional[CompiledRule]
+    matched_rule: CompiledRule | None
     suppressed: tuple[CompiledRule, ...] = ()
 
 
@@ -126,7 +127,7 @@ def decide(
         The `Decision` describing the chosen action, the matching rule (if
         any), and any `none`-suppressed rules encountered along the way.
     """
-    last_match: Optional[CompiledRule] = None
+    last_match: CompiledRule | None = None
     suppressed: list[CompiledRule] = []
     for rule in rules:
         if not _all_satisfied(rule, argv):
@@ -136,9 +137,7 @@ def decide(
             continue
         last_match = rule
     if last_match is None:
-        return Decision(
-            action=default, matched_rule=None, suppressed=tuple(suppressed)
-        )
+        return Decision(action=default, matched_rule=None, suppressed=tuple(suppressed))
     return Decision(
         action=last_match.action,
         matched_rule=last_match,

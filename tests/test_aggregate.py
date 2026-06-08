@@ -7,9 +7,10 @@ strongest action (``deny > ask > allow``), and composes a
 
 from __future__ import annotations
 
+from helpers import lit, rule
+
 from ccpermissions.aggregate import AggregateResult, aggregate
 from ccpermissions.parse import ExtractedCommand
-from helpers import lit, rule
 
 
 def cmd(
@@ -94,7 +95,7 @@ def test_three_deny_matches_all_listed():
 
 
 def test_multi_match_distinguishes_top_level_from_wrapped():
-    """One top-level contributor and one wrapped contributor — both ``from:`` clauses appear."""
+    """One top-level and one wrapped contributor — both ``from:`` clauses appear."""
     rules = [rule(lit("rm", "-rf"), "deny")]
     cmds = [
         cmd("rm -rf /"),

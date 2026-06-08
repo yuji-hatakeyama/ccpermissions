@@ -98,12 +98,14 @@ def test_home_fallback_when_claude_config_dir_unset(tmp_path):
     """Without CLAUDE_CONFIG_DIR, the user config is read from $HOME/.claude."""
     home = tmp_path / "fake-home"
     (home / ".claude").mkdir(parents=True, exist_ok=True)
-    (home / ".claude" / "ccpermissions.yaml").write_text(textwrap.dedent("""
+    (home / ".claude" / "ccpermissions.yaml").write_text(
+        textwrap.dedent("""
         version: 1
         rules:
           - all: ['echo']
             action: allow
-    """))
+    """)
+    )
     result = load_merged()
     assert result.error is None
     assert labels(result.rules) == ["all=[echo]"]

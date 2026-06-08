@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from ccpermissions.decide import Decision, Matcher, decide
 from helpers import lit, rule, rx
 
+from ccpermissions.decide import Decision, Matcher, decide
 
 # --- baseline -------------------------------------------------------------
 
@@ -163,7 +163,7 @@ def test_rule_label_renders_regex_and_none():
 
 
 def test_suppressed_rule_recorded_when_none_excludes_it():
-    """A rule whose `all` matched but was suppressed by `none` lands in `Decision.suppressed`.
+    """A rule whose `all` matched but was suppressed by `none` lands in `suppressed`.
 
     The user-facing pain is that an `ask`/`deny` from default-fallback gives no
     hint that an `allow` exception almost fired; `Decision.suppressed` is the

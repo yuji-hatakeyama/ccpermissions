@@ -8,8 +8,9 @@ picks the strongest action — ``deny > ask > allow`` — and composes a
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Final, List, Optional, Sequence
+from typing import Final
 
 from .decide import Action, CompiledRule, Decision, decide
 from .parse import ExtractedCommand
@@ -29,7 +30,7 @@ class AggregateResult:
     """
 
     action: Action
-    reason: Optional[str]
+    reason: str | None
 
 
 def aggregate(
@@ -55,14 +56,14 @@ def aggregate(
     if not commands:
         return AggregateResult(action=default, reason=None)
 
-    entries: List[_Entry] = [_decide_one(c, rules, default) for c in commands]
+    entries: list[_Entry] = [_decide_one(c, rules, default) for c in commands]
     entries = _dedupe_wrapper_parents(entries)
     # `max` is stable, so the first entry at the winning priority is the
     # leftmost — the desired tie-breaker (preserve execution order).
     winner: _Entry = max(entries, key=lambda e: _PRIORITY[e.decision.action])
     winner_action: Action = winner.decision.action
 
-    contributors: List[_Entry] = [
+    contributors: list[_Entry] = [
         e
         for e in entries
         if e.decision.action == winner_action
@@ -88,9 +89,7 @@ def aggregate(
     # Pure-default `deny` is otherwise silent and Claude has to guess why a
     # tool was blocked. Spell it out so the next attempt is informed.
     if winner_action == "deny":
-        return AggregateResult(
-            action="deny", reason="no rule matched; default is deny"
-        )
+        return AggregateResult(action="deny", reason="no rule matched; default is deny")
     return AggregateResult(action=winner_action, reason=None)
 
 
@@ -117,7 +116,7 @@ def _decide_one(
     return _Entry(extracted, decide(extracted.argv, rules, default), False)
 
 
-def _compose_reason(entries: List[_Entry], action: Action) -> str:
+def _compose_reason(entries: list[_Entry], action: Action) -> str:
     """Build the reason text from the contributors to the winning action.
 
     Args:
@@ -130,8 +129,10 @@ def _compose_reason(entries: List[_Entry], action: Action) -> str:
     """
     if len(entries) == 1:
         e: _Entry = entries[0]
-        return f"matched rule: {_rule_label(e)} -> {action}{_from_clause(e, always=False)}"
-    lines: List[str] = [f"matched {len(entries)} {action} rules:"]
+        return (
+            f"matched rule: {_rule_label(e)} -> {action}{_from_clause(e, always=False)}"
+        )
+    lines: list[str] = [f"matched {len(entries)} {action} rules:"]
     for e in entries:
         lines.append(f"  - {_rule_label(e)}{_from_clause(e, always=True)}")
     return "\n".join(lines)
@@ -144,7 +145,7 @@ def _rule_label(e: _Entry) -> str:
     return e.decision.matched_rule.label if e.decision.matched_rule else ""
 
 
-def _dedupe_wrapper_parents(entries: List[_Entry]) -> List[_Entry]:
+def _dedupe_wrapper_parents(entries: list[_Entry]) -> list[_Entry]:
     """Drop wrapper-parent entries fully covered by an unwrapped child match.
 
     When ``sudo rm`` and the unwrapped ``rm`` (origin=``sudo rm``) both fire
@@ -163,7 +164,7 @@ def _dedupe_wrapper_parents(entries: List[_Entry]) -> List[_Entry]:
             continue
         child_origins_by_rule.setdefault(id(rule), set()).add(e.extracted.origin)
 
-    kept: List[_Entry] = []
+    kept: list[_Entry] = []
     for e in entries:
         rule = e.decision.matched_rule
         if rule is not None and e.extracted.text in child_origins_by_rule.get(
@@ -174,9 +175,7 @@ def _dedupe_wrapper_parents(entries: List[_Entry]) -> List[_Entry]:
     return kept
 
 
-def _collect_suppressed(
-    entries: List[_Entry], winner_action: Action
-) -> List[_Entry]:
+def _collect_suppressed(entries: list[_Entry], winner_action: Action) -> list[_Entry]:
     """Pick the entries whose `none`-suppression is worth reporting.
 
     Only entries that fell through to the default (and therefore have no
@@ -194,9 +193,9 @@ def _collect_suppressed(
     ]
 
 
-def _compose_suppressed_reason(entries: List[_Entry], action: Action) -> str:
+def _compose_suppressed_reason(entries: list[_Entry], action: Action) -> str:
     """Render the `(rule, source)` pairs the user would have expected to fire."""
-    items: List[tuple[CompiledRule, _Entry]] = [
+    items: list[tuple[CompiledRule, _Entry]] = [
         (r, e) for e in entries for r in e.decision.suppressed
     ]
     if len(items) == 1:
@@ -205,7 +204,7 @@ def _compose_suppressed_reason(entries: List[_Entry], action: Action) -> str:
             f"default {action}; suppressed by none: "
             f"{rule.label}{_from_clause(e, always=False)}"
         )
-    lines: List[str] = [f"default {action}; {len(items)} rules suppressed by none:"]
+    lines: list[str] = [f"default {action}; {len(items)} rules suppressed by none:"]
     for rule, e in items:
         lines.append(f"  - {rule.label}{_from_clause(e, always=True)}")
     return "\n".join(lines)
@@ -222,7 +221,5 @@ def _from_clause(e: _Entry, *, always: bool) -> str:
     """
     if not always and e.extracted.origin is None and not e.unanalyzable:
         return ""
-    src: str = (
-        e.extracted.origin if e.extracted.origin is not None else e.extracted.text
-    )
+    src: str = e.extracted.origin if e.extracted.origin is not None else e.extracted.text
     return f" (from: {src})"

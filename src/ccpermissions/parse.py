@@ -15,8 +15,9 @@ unparseable input.
 from __future__ import annotations
 
 import shlex
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Any, Final, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Final
 
 import bashlex
 import bashlex.errors
@@ -26,7 +27,7 @@ _TRUNCATE: Final[int] = 80
 # Exceptions that mean "we cannot statically analyze this input."
 # `ParsingError` covers tokenizer-side matched-pair errors via subclassing.
 # `NotImplementedError` is what bashlex raises for `case ... esac`.
-_UNPARSEABLE: Final[Tuple[type, ...]] = (
+_UNPARSEABLE: Final[tuple[type, ...]] = (
     bashlex.errors.ParsingError,
     NotImplementedError,
 )
@@ -58,12 +59,12 @@ class ExtractedCommand:
     """
 
     text: str
-    argv: Tuple[str, ...] = ()
-    origin: Optional[str] = None
+    argv: tuple[str, ...] = ()
+    origin: str | None = None
     unanalyzable: bool = False
 
 
-def enumerate_commands(text: str) -> List[ExtractedCommand]:
+def enumerate_commands(text: str) -> list[ExtractedCommand]:
     """Walk the shell input and return one entry per executable command position.
 
     Args:
@@ -80,7 +81,7 @@ def enumerate_commands(text: str) -> List[ExtractedCommand]:
         trees = bashlex.parse(text)
     except _UNPARSEABLE:
         return [ExtractedCommand(text=_truncate(text), unanalyzable=True)]
-    out: List[ExtractedCommand] = []
+    out: list[ExtractedCommand] = []
     for tree in trees:
         _walk(tree, origin=None, out=out)
     return out
@@ -89,7 +90,7 @@ def enumerate_commands(text: str) -> List[ExtractedCommand]:
 # --- AST walking ----------------------------------------------------------
 
 
-def _walk(node: _BashNode, *, origin: Optional[str], out: List[ExtractedCommand]) -> None:
+def _walk(node: _BashNode, *, origin: str | None, out: list[ExtractedCommand]) -> None:
     """Recurse over an AST node, emitting one `ExtractedCommand` per command."""
     if getattr(node, "kind", None) == "command":
         _emit_command(node, origin=origin, out=out)
@@ -117,26 +118,26 @@ def _children(node: _BashNode) -> Iterable[_BashNode]:
 
 
 def _emit_command(
-    cmd_node: _BashNode, *, origin: Optional[str], out: List[ExtractedCommand]
+    cmd_node: _BashNode, *, origin: str | None, out: list[ExtractedCommand]
 ) -> None:
     """Emit one entry for ``cmd_node``, plus any embedded / wrapped commands."""
-    argv: List[str] = _argv_words(cmd_node)
+    argv: list[str] = _argv_words(cmd_node)
     if not argv:
         return
     text: str = " ".join(argv)
     out.append(ExtractedCommand(text=text, argv=tuple(argv), origin=origin))
     _emit_substitutions(cmd_node, parent_text=text, out=out)
-    inner: Optional[str] = _try_unwrap(argv)
+    inner: str | None = _try_unwrap(argv)
     if inner is not None:
         _walk_string(inner, origin=text, out=out)
     if argv[0] in _SHELLS:
-        heredoc: Optional[str] = _heredoc_body(cmd_node)
+        heredoc: str | None = _heredoc_body(cmd_node)
         if heredoc is not None:
             _walk_string(heredoc, origin=text, out=out)
 
 
 def _emit_substitutions(
-    cmd_node: _BashNode, *, parent_text: str, out: List[ExtractedCommand]
+    cmd_node: _BashNode, *, parent_text: str, out: list[ExtractedCommand]
 ) -> None:
     """Walk ``$(...)`` and ``<(...)`` inside the command's word parts.
 
@@ -145,7 +146,7 @@ def _emit_substitutions(
     """
     for part in cmd_node.parts:
         for sub in _iter_word_parts(part):
-            kind: Optional[str] = getattr(sub, "kind", None)
+            kind: str | None = getattr(sub, "kind", None)
             if kind in ("commandsubstitution", "processsubstitution"):
                 _walk(sub.command, origin=parent_text, out=out)
 
@@ -155,21 +156,19 @@ def _iter_word_parts(part: _BashNode) -> Iterable[_BashNode]:
     return getattr(part, "parts", None) or ()
 
 
-def _argv_words(cmd_node: _BashNode) -> List[str]:
+def _argv_words(cmd_node: _BashNode) -> list[str]:
     """Return the word values of a command, ignoring assignments / redirects."""
     return [p.word for p in cmd_node.parts if getattr(p, "kind", None) == "word"]
 
 
-def _walk_string(s: str, *, origin: str, out: List[ExtractedCommand]) -> None:
+def _walk_string(s: str, *, origin: str, out: list[ExtractedCommand]) -> None:
     """Re-parse a string (the body of a wrapper) and walk its AST."""
     if not s.strip():
         return
     try:
         trees = bashlex.parse(s)
     except _UNPARSEABLE:
-        out.append(
-            ExtractedCommand(text=_truncate(s), origin=origin, unanalyzable=True)
-        )
+        out.append(ExtractedCommand(text=_truncate(s), origin=origin, unanalyzable=True))
         return
     for t in trees:
         _walk(t, origin=origin, out=out)
@@ -186,7 +185,7 @@ def _walk_string(s: str, *, origin: str, out: List[ExtractedCommand]) -> None:
 _SHELLS: Final[frozenset[str]] = frozenset({"sh", "bash", "zsh", "dash"})
 
 
-def _try_unwrap(argv: Sequence[str]) -> Optional[str]:
+def _try_unwrap(argv: Sequence[str]) -> str | None:
     """Dispatch on ``argv[0]`` to the matching unwrapper, or ``None``."""
     head: str = argv[0]
     if head in _SHELLS:
@@ -202,7 +201,7 @@ def _try_unwrap(argv: Sequence[str]) -> Optional[str]:
     return None
 
 
-def _unwrap_dash_c(argv: Sequence[str]) -> Optional[str]:
+def _unwrap_dash_c(argv: Sequence[str]) -> str | None:
     """``<shell> -c '<inner>'`` → return ``<inner>`` (already a single word)."""
     for i in range(1, len(argv) - 1):
         if argv[i] == "-c":
@@ -215,22 +214,22 @@ _SUDO_VALUE_FLAGS: Final[frozenset[str]] = frozenset(
 )
 
 
-def _unwrap_sudo(argv: Sequence[str]) -> Optional[str]:
+def _unwrap_sudo(argv: Sequence[str]) -> str | None:
     """Drop sudo's own flags and ``VAR=val`` preamble; return the rest."""
-    rest: List[str] = _strip_flags_and_assignments(argv[1:], _SUDO_VALUE_FLAGS)
+    rest: list[str] = _strip_flags_and_assignments(argv[1:], _SUDO_VALUE_FLAGS)
     return shlex.join(rest) if rest else None
 
 
 _ENV_VALUE_FLAGS: Final[frozenset[str]] = frozenset({"-u", "-C", "-S"})
 
 
-def _unwrap_env(argv: Sequence[str]) -> Optional[str]:
+def _unwrap_env(argv: Sequence[str]) -> str | None:
     """``env [VAR=val ...] [flags] cmd args`` → drop env's preamble."""
-    rest: List[str] = _strip_flags_and_assignments(argv[1:], _ENV_VALUE_FLAGS)
+    rest: list[str] = _strip_flags_and_assignments(argv[1:], _ENV_VALUE_FLAGS)
     return shlex.join(rest) if rest else None
 
 
-def _unwrap_find_exec(argv: Sequence[str]) -> Optional[str]:
+def _unwrap_find_exec(argv: Sequence[str]) -> str | None:
     """``find ... -exec cmd args \\;`` or ``... -exec cmd args +``."""
     try:
         start: int = argv.index("-exec")
@@ -241,11 +240,11 @@ def _unwrap_find_exec(argv: Sequence[str]) -> Optional[str]:
         if argv[j] in (";", "+"):
             end = j
             break
-    inner: List[str] = list(argv[start + 1 : end])
+    inner: list[str] = list(argv[start + 1 : end])
     return shlex.join(inner) if inner else None
 
 
-def _unwrap_eval(argv: Sequence[str]) -> Optional[str]:
+def _unwrap_eval(argv: Sequence[str]) -> str | None:
     """``eval <args...>`` runs the joined args as a shell command per POSIX.
 
     Treating eval as a wrapper is symmetric with ``sh -c``: both feed a string
@@ -263,7 +262,7 @@ def _unwrap_eval(argv: Sequence[str]) -> Optional[str]:
     return " ".join(argv[1:])
 
 
-def _heredoc_body(cmd_node: _BashNode) -> Optional[str]:
+def _heredoc_body(cmd_node: _BashNode) -> str | None:
     """Return the heredoc body attached to a shell command, or ``None``.
 
     Only called for commands whose head is one of `_SHELLS`. A ``bash <<EOF``
@@ -280,7 +279,7 @@ def _heredoc_body(cmd_node: _BashNode) -> Optional[str]:
         if heredoc is None:
             continue
         body: str = heredoc.value
-        terminator: Optional[str] = getattr(getattr(part, "output", None), "word", None)
+        terminator: str | None = getattr(getattr(part, "output", None), "word", None)
         if terminator is not None:
             suffix: str = "\n" + terminator
             if body.endswith(suffix):
@@ -293,7 +292,7 @@ def _heredoc_body(cmd_node: _BashNode) -> Optional[str]:
 
 def _strip_flags_and_assignments(
     rest: Sequence[str], value_flags: frozenset[str]
-) -> List[str]:
+) -> list[str]:
     """Drop leading ``-flag`` tokens and ``VAR=val`` assignments.
 
     Consumes an extra argument for known value-bearing flags (e.g. ``-u alice``).
@@ -306,7 +305,7 @@ def _strip_flags_and_assignments(
     Returns:
         The remaining argv as a list (may be empty).
     """
-    out: List[str] = list(rest)
+    out: list[str] = list(rest)
     while out:
         tok: str = out[0]
         if tok == "--":

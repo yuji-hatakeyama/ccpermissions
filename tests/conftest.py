@@ -66,5 +66,3 @@ def write_project_config(tmp_path, monkeypatch) -> Callable[[str], Path]:
         return proj
 
     return _write
-
-
