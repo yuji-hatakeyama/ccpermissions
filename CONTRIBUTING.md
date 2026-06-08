@@ -1,33 +1,14 @@
 # Contributing
 
 ```bash
-git clone https://github.com/yuji-hatakeyama/ccpermissions.git
-cd ccpermissions
-uv sync                                      # install runtime + dev deps (pytest)
+uv sync           # install runtime + dev deps (pytest)
+uv run pytest     # full suite (~160 tests, <1s)
 ```
 
-## Unit / orchestrator tests
-
-```bash
-uv run pytest                                # full suite (~160 tests, <1s)
-uv run pytest tests/test_decide.py           # one module
-uv run pytest tests/test_decide.py::test_name  # one test
-uv run pytest -k "regex and not config"      # by expression
-```
-
-Test layout (one file per module so failures localise):
-
-- `tests/test_parse.py`     — `bashlex`-aware command enumeration (text + argv).
-- `tests/test_decide.py`    — pure-function unit tests for token matching.
-- `tests/test_aggregate.py` — priority and reason composition.
-- `tests/test_config.py`    — YAML loading, merging, and error reporting.
-- `tests/test_cli.py`       — end-to-end JSON in / JSON out via the
-  orchestrator (and one subprocess smoke test against the installed
-  `ccpermissions-claude-code` console script).
-
+Tests are organised one file per module (`tests/test_<module>.py`).
 `conftest.py` autouse-isolates `HOME`, `CLAUDE_CONFIG_DIR`, and
-`CLAUDE_PROJECT_DIR` into `tmp_path` for every test, so the suite never
-touches your real config.
+`CLAUDE_PROJECT_DIR` into `tmp_path`, so the suite never touches your real
+config.
 
 ## Driving the hook by hand
 
@@ -52,7 +33,6 @@ real `~/.claude`, build an isolated `CLAUDE_CONFIG_DIR` sandbox that resolves
 ```bash
 # 1. Build a throwaway config dir
 export CCPERM_SANDBOX="$(mktemp -d)"
-mkdir -p "$CCPERM_SANDBOX"
 
 # 2. Point the hook at THIS checkout (no install needed)
 cat > "$CCPERM_SANDBOX/settings.json" <<EOF
@@ -95,10 +75,5 @@ on source change. When you're done, `rm -rf "$CCPERM_SANDBOX"`.
 
 ## Updating pinned dependencies
 
-`pyyaml` and `bashlex` are pinned to a patch version. To take a security
-update:
-
-```bash
-uv lock --upgrade-package pyyaml
-# bump the version in pyproject.toml, review diff, open a PR
-```
+`pyyaml` and `bashlex` are pinned to a patch version. Bump via
+`uv lock --upgrade-package <name>` plus the matching `pyproject.toml` edit.

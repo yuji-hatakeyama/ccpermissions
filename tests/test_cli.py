@@ -354,9 +354,8 @@ _README_EXAMPLE_YAML = """
       - all: [{regex: '(^|/)git$'}]
         none: ['push']
         action: allow
-      - all: [{regex: '(^|/)git$'}, 'push']
-        none: ['--force', '-f', {regex: '^--force='}]
-        action: ask
+      - all: [{regex: '(^|/)git$'}, 'push', {regex: '^(--force|-f$)'}]
+        action: deny
       - all: [{regex: '(^|/)rm$'}, '-rf']
         action: deny
       - all: [{regex: '^(npm|pnpm|bun)$'}, 'test']
@@ -376,36 +375,56 @@ def test_readme_example_absolute_path_git_status_allowed(write_user_config):
     assert_decision(run_main(hook_input("/usr/bin/git status")), "allow")
 
 
-def test_readme_example_git_push_normal_asks(write_user_config):
+def test_readme_example_git_push_normal_falls_through_to_default_ask(write_user_config):
     """``git push origin main`` — rule 1's `none=[push]` suppresses the broad
-    allow; rule 2's `all` matches and `none` doesn't fire → ask wins."""
+    allow; no other rule matches → falls through to default ask."""
     write_user_config(_README_EXAMPLE_YAML)
     assert_decision(
         run_main(hook_input("git push origin main")),
         "ask",
-        reason_contains=["all=[re:(^|/)git$, push]"],
+        reason_contains=["default ask", "suppressed by none"],
     )
 
 
-def test_readme_example_git_force_push_falls_through_to_default_ask(write_user_config):
-    """``git push --force`` — both rules' `none` clauses suppress; falls through
-    to default ask with the suppressed-by-none reason naming both rules."""
+def test_readme_example_git_force_push_denied(write_user_config):
+    """``git push --force origin`` — the deny rule's force-flag regex catches
+    `--force` and the rule fires → deny."""
     write_user_config(_README_EXAMPLE_YAML)
     assert_decision(
         run_main(hook_input("git push --force origin")),
-        "ask",
-        reason_contains=["suppressed by none", "--force"],
+        "deny",
+        reason_contains=["re:^(--force|-f$)"],
     )
 
 
-def test_readme_example_git_force_equals_caught_by_regex(write_user_config):
-    """``git push --force=true`` — the literal `--force` misses this token,
-    but the `{regex: '^--force='}` element in `none` catches it."""
+def test_readme_example_git_short_force_push_denied(write_user_config):
+    """``git push -f origin`` — `-f$` alternative in the force-flag regex fires."""
+    write_user_config(_README_EXAMPLE_YAML)
+    assert_decision(
+        run_main(hook_input("git push -f origin")),
+        "deny",
+        reason_contains=["re:^(--force|-f$)"],
+    )
+
+
+def test_readme_example_git_force_equals_denied(write_user_config):
+    """``git push --force=true`` — the `^--force` alternative catches the
+    `=`-suffixed token form that a literal `--force` would miss."""
     write_user_config(_README_EXAMPLE_YAML)
     assert_decision(
         run_main(hook_input("git push --force=true")),
-        "ask",
-        reason_contains=["suppressed by none", "re:^--force="],
+        "deny",
+        reason_contains=["re:^(--force|-f$)"],
+    )
+
+
+def test_readme_example_git_force_with_lease_denied(write_user_config):
+    """``git push --force-with-lease`` — `^--force` prefix catches it as a force push."""
+    write_user_config(_README_EXAMPLE_YAML)
+    assert_decision(
+        run_main(hook_input("git push --force-with-lease")),
+        "deny",
+        reason_contains=["re:^(--force|-f$)"],
     )
 
 
