@@ -48,7 +48,8 @@ The pipeline, in execution order, with one module per stage:
    positions with priority `deny > ask > allow`, then composes a multi-line
    `permissionDecisionReason` listing only the contributors to the winning
    action. `unanalyzable` segments vote `default` (not `allow`). Pure
-   default-fallback wins (no rule matched, no unanalyzable) emit no reason.
+   default-fallback `ask` wins emit no reason; pure-default `deny` and
+   `none`-suppressed fallbacks explain themselves.
 
 ### Invariants worth knowing before editing
 
@@ -61,9 +62,10 @@ The pipeline, in execution order, with one module per stage:
 - **Error path**: a `LoadResult` carrying an `error` must have `rules=()` and
   `default="ask"` (enforced in `__post_init__`). The CLI surfaces the error
   string verbatim as `permissionDecisionReason`.
-- **Reason omission**: `allow` and pure-default winners emit no reason on
-  purpose — `ask` reasons appear in the user's permission dialog, `deny`
-  reasons go into Claude's context, but `allow`/default reasons would be noise.
+- **Reason omission**: `allow` and pure-default `ask` winners emit no reason
+  on purpose — `ask` reasons appear in the user's permission dialog, `deny`
+  reasons go into Claude's context, but `allow`/default-`ask` reasons would be
+  noise. Pure-default `deny` and `none`-suppressed fallbacks *do* emit one.
 - **No I/O outside `config.load_merged` and `cli`**. `parse`, `decide`,
   `aggregate` are pure — keep them that way; they're the embeddable surface
   documented in the README.

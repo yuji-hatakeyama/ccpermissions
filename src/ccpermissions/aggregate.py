@@ -47,10 +47,12 @@ def aggregate(
             for ``unanalyzable`` entries.
 
     Returns:
-        An `AggregateResult`. ``reason`` is populated when at least one
-        contributor to the winning action either matched a rule or was an
-        unanalyzable segment; otherwise it is ``None`` so pure default-fallback
-        wins emit no reason.
+        An `AggregateResult`. ``reason`` is ``None`` for ``allow`` winners
+        (even when rules matched) and for pure default-fallback ``ask`` wins.
+        It is populated for ``ask``/``deny`` winners with a contributor (a
+        matched rule or an unanalyzable segment), for default-fallback wins
+        with `none`-suppressed rules to surface, and for pure-default ``deny``
+        (so Claude is told why the tool was blocked).
     """
     if not commands:
         return AggregateResult(action=default, reason=None)

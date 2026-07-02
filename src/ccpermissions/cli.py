@@ -57,14 +57,11 @@ def _extract_command(payload: Any) -> str:
     return command
 
 
-def _format_output(result: AggregateResult) -> str:
+def _format_output(action: str, reason: str | None) -> str:
     """Build the PreToolUse `hookSpecificOutput` JSON string.
 
-    Emits ``permissionDecisionReason`` only when `result.reason` is not
-    ``None``; which outcomes carry a reason is the aggregator's policy.
-
-    Args:
-        result: The combined decision and (optional) reason.
+    Emits ``permissionDecisionReason`` only when `reason` is not ``None``;
+    which outcomes carry a reason is the caller's policy.
 
     Returns:
         A single-line JSON string with a trailing newline, suitable for
@@ -72,10 +69,10 @@ def _format_output(result: AggregateResult) -> str:
     """
     hso: dict[str, Any] = {
         "hookEventName": "PreToolUse",
-        "permissionDecision": result.action,
+        "permissionDecision": action,
     }
-    if result.reason is not None:
-        hso["permissionDecisionReason"] = result.reason
+    if reason is not None:
+        hso["permissionDecisionReason"] = reason
     return json.dumps({"hookSpecificOutput": hso}) + "\n"
 
 
@@ -85,7 +82,7 @@ def _ask(error: str) -> str:
     Errors fall back to `ask`, where the reason appears in the user's
     confirmation dialog.
     """
-    return _format_output(AggregateResult(action="ask", reason=error))
+    return _format_output("ask", error)
 
 
 def _run(stdin: IO[str], stdout: IO[str]) -> None:
@@ -121,7 +118,7 @@ def _run(stdin: IO[str], stdout: IO[str]) -> None:
         return
     commands: list[ExtractedCommand] = enumerate_commands(command)
     result: AggregateResult = aggregate(commands, cfg.rules, cfg.default)
-    stdout.write(_format_output(result))
+    stdout.write(_format_output(result.action, result.reason))
 
 
 def main(

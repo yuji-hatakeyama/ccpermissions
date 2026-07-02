@@ -39,10 +39,9 @@ class LoadResult:
 
     - **Success**: `rules` populated (possibly empty), `default` set,
       `error=None`.
-    - **Failure**: `rules=()`, `default="ask"`, `error` non-`None`. The
-      orchestrator emits an `ask` decision with `error` as the reason, so
-      the user always sees what went wrong without being silently locked
-      out.
+    - **Failure**: `rules=()`, `default="ask"`, `error` non-`None` — a
+      broken config can never grant permissions, and `error` carries what
+      went wrong so the failure is always surfaceable.
 
     Attributes:
         rules: Compiled rules in evaluation order (user rules first, then
@@ -89,7 +88,6 @@ def project_config_path() -> Path | None:
     return Path(project_dir) / ".claude" / "ccpermissions.yaml"
 
 
-# Human-readable list of valid actions for error messages.
 _EXPECTED_ACTIONS: Final[str] = ", ".join(ACTIONS)
 
 

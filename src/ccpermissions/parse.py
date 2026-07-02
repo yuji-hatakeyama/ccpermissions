@@ -104,10 +104,13 @@ def _children(node: _BashNode) -> Iterable[_BashNode]:
 
     bashlex uses a small set of attribute names to hold children
     (``parts``, ``list``, and ``command`` for substitutions). Iterating
-    them all is enough to descend through compound / list / pipeline /
-    control-flow nodes without enumerating each kind. Word nodes carry
-    their substitution parts in ``parts`` too, which is why
-    `_emit_substitutions` reuses this helper.
+    them all descends through compound / list / pipeline / control-flow
+    nodes without enumerating each kind. Word nodes carry their
+    substitution parts in ``parts`` too, so this also descends words.
+
+    NOTE: redirect nodes hang their target off ``output`` / ``heredoc``,
+    which is not iterated — substitutions in redirect targets
+    (``> $(cmd)``, ``> >(cmd)``) are not extracted.
     """
     for attr in ("parts", "list", "command"):
         child = getattr(node, attr, None)
