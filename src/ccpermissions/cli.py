@@ -57,19 +57,14 @@ def _extract_command(payload: Any) -> str:
     return command
 
 
-def _format_output(result: AggregateResult, error: str | None) -> str:
+def _format_output(result: AggregateResult) -> str:
     """Build the PreToolUse `hookSpecificOutput` JSON string.
 
-    Reason precedence:
-
-    - When `error` is non-`None` it always wins. (Errors fall back to
-      `ask`, where the reason appears in the user's confirmation dialog.)
-    - Otherwise the aggregator's composed reason is used.
-    - `allow` and pure-default winners emit no reason.
+    `allow` and pure-default winners carry no reason (`result.reason` is
+    ``None``) and emit none.
 
     Args:
-        result: The aggregator's combined decision and (optional) reason.
-        error: Optional human-readable error string (config or runtime).
+        result: The combined decision and (optional) reason.
 
     Returns:
         A single-line JSON string with a trailing newline, suitable for
@@ -79,16 +74,18 @@ def _format_output(result: AggregateResult, error: str | None) -> str:
         "hookEventName": "PreToolUse",
         "permissionDecision": result.action,
     }
-    if error is not None:
-        hso["permissionDecisionReason"] = error
-    elif result.reason is not None:
+    if result.reason is not None:
         hso["permissionDecisionReason"] = result.reason
     return json.dumps({"hookSpecificOutput": hso}) + "\n"
 
 
 def _ask(error: str) -> str:
-    """Build an `ask + reason` output for an error path."""
-    return _format_output(AggregateResult(action="ask", reason=None), error)
+    """Build an `ask + reason` output for an error path.
+
+    Errors fall back to `ask`, where the reason appears in the user's
+    confirmation dialog.
+    """
+    return _format_output(AggregateResult(action="ask", reason=error))
 
 
 def _run(stdin: IO[str], stdout: IO[str]) -> None:
@@ -117,9 +114,14 @@ def _run(stdin: IO[str], stdout: IO[str]) -> None:
         return
 
     cfg: LoadResult = load_merged()
+    if cfg.error is not None:
+        # The error LoadResult is pinned to rules=(), default="ask", so the
+        # outcome is already determined — skip the parse/aggregate pass.
+        stdout.write(_ask(cfg.error))
+        return
     commands: list[ExtractedCommand] = enumerate_commands(command)
     result: AggregateResult = aggregate(commands, cfg.rules, cfg.default)
-    stdout.write(_format_output(result, cfg.error))
+    stdout.write(_format_output(result))
 
 
 def main(

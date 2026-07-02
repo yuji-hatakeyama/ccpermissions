@@ -89,9 +89,8 @@ def project_config_path() -> Path | None:
     return Path(project_dir) / ".claude" / "ccpermissions.yaml"
 
 
-def _expected_actions() -> str:
-    """Human-readable list of valid actions for error messages."""
-    return ", ".join(ACTIONS)
+# Human-readable list of valid actions for error messages.
+_EXPECTED_ACTIONS: Final[str] = ", ".join(ACTIONS)
 
 
 # Lazily built and cached: importing PyYAML and registering the constructor
@@ -191,7 +190,7 @@ def _parse(text: str, source: Path) -> _ParsedFile:
         d = data["default"]
         if d not in ACTIONS:
             raise _ConfigError(
-                f"{source}: invalid default {d!r}; expected one of: {_expected_actions()}"
+                f"{source}: invalid default {d!r}; expected one of: {_EXPECTED_ACTIONS}"
             )
         default = cast(Action, d)
 
@@ -235,7 +234,7 @@ def _parse_rule(entry: object, source: Path, i: int) -> CompiledRule:
     act: object = entry["action"]
     if act not in ACTIONS:
         raise _ConfigError(
-            f"{source}: rules[{i}] action {act!r} must be one of: {_expected_actions()}"
+            f"{source}: rules[{i}] action {act!r} must be one of: {_EXPECTED_ACTIONS}"
         )
 
     return CompiledRule(

@@ -145,15 +145,10 @@ def _emit_substitutions(
     inner AST is exposed by bashlex as ``.command`` on the substitution node.
     """
     for part in cmd_node.parts:
-        for sub in _iter_word_parts(part):
+        for sub in getattr(part, "parts", None) or ():
             kind: str | None = getattr(sub, "kind", None)
             if kind in ("commandsubstitution", "processsubstitution"):
                 _walk(sub.command, origin=parent_text, out=out)
-
-
-def _iter_word_parts(part: _BashNode) -> Iterable[_BashNode]:
-    """Yield the inner parts attached to a word node, if any."""
-    return getattr(part, "parts", None) or ()
 
 
 def _argv_words(cmd_node: _BashNode) -> list[str]:

@@ -73,14 +73,6 @@ class CompiledRule:
             text += " none=[" + ", ".join(m.label for m in self.none) + "]"
         return text
 
-    def matches(self, argv: Sequence[str]) -> bool:
-        """True when this rule fires for `argv` (every ``all``, no ``none``)."""
-        if not all(any(m.matches(tok) for tok in argv) for m in self.all):
-            return False
-        if any(m.matches(tok) for m in self.none for tok in argv):
-            return False
-        return True
-
 
 @dataclass(frozen=True)
 class Decision:
@@ -136,10 +128,8 @@ def decide(
             suppressed.append(rule)
             continue
         last_match = rule
-    if last_match is None:
-        return Decision(action=default, matched_rule=None, suppressed=tuple(suppressed))
     return Decision(
-        action=last_match.action,
+        action=last_match.action if last_match is not None else default,
         matched_rule=last_match,
         suppressed=tuple(suppressed),
     )

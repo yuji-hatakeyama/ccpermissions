@@ -270,7 +270,6 @@ def test_eval_quoted_command_string_is_unwrapped():
 def test_eval_with_multi_word_concatenation_is_unwrapped():
     """``eval rm -rf /`` (no quoting) is also bash-equivalent to running the
     joined args; our unwrap walks the joined string."""
-    enumerate_commands("eval rm -rf /")
     assert "rm -rf /" in texts(enumerate_commands("eval rm -rf /"))
 
 

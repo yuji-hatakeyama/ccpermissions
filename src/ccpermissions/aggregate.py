@@ -62,16 +62,16 @@ def aggregate(
     # leftmost — the desired tie-breaker (preserve execution order).
     winner: _Entry = max(entries, key=lambda e: _PRIORITY[e.decision.action])
     winner_action: Action = winner.decision.action
+    if winner_action == "allow":
+        return AggregateResult(action=winner_action, reason=None)
 
     contributors: list[_Entry] = [
         e
         for e in entries
         if e.decision.action == winner_action
-        and (e.decision.matched_rule is not None or e.unanalyzable)
+        and (e.decision.matched_rule is not None or e.extracted.unanalyzable)
     ]
 
-    if winner_action == "allow":
-        return AggregateResult(action=winner_action, reason=None)
     if contributors:
         return AggregateResult(
             action=winner_action,
@@ -102,7 +102,6 @@ class _Entry:
 
     extracted: ExtractedCommand
     decision: Decision
-    unanalyzable: bool
 
 
 def _decide_one(
@@ -112,8 +111,8 @@ def _decide_one(
 ) -> _Entry:
     """Run `decide` for one command, or synthesize a default vote when unanalyzable."""
     if extracted.unanalyzable:
-        return _Entry(extracted, Decision(action=default, matched_rule=None), True)
-    return _Entry(extracted, decide(extracted.argv, rules, default), False)
+        return _Entry(extracted, Decision(action=default, matched_rule=None))
+    return _Entry(extracted, decide(extracted.argv, rules, default))
 
 
 def _compose_reason(entries: list[_Entry], action: Action) -> str:
@@ -140,7 +139,7 @@ def _compose_reason(entries: list[_Entry], action: Action) -> str:
 
 def _rule_label(e: _Entry) -> str:
     """``(unanalyzable)`` for unanalyzable entries, the rule's label otherwise."""
-    if e.unanalyzable:
+    if e.extracted.unanalyzable:
         return "(unanalyzable)"
     return e.decision.matched_rule.label if e.decision.matched_rule else ""
 
@@ -186,7 +185,7 @@ def _collect_suppressed(entries: list[_Entry], winner_action: Action) -> list[_E
     return [
         e
         for e in entries
-        if not e.unanalyzable
+        if not e.extracted.unanalyzable
         and e.decision.matched_rule is None
         and e.decision.action == winner_action
         and e.decision.suppressed
@@ -219,7 +218,7 @@ def _from_clause(e: _Entry, *, always: bool) -> str:
     command; in a multi-contributor list it is always shown (`always=True`) so
     each line maps back to a distinct sub-command.
     """
-    if not always and e.extracted.origin is None and not e.unanalyzable:
+    if not always and e.extracted.origin is None and not e.extracted.unanalyzable:
         return ""
     src: str = e.extracted.origin if e.extracted.origin is not None else e.extracted.text
     return f" (from: {src})"
