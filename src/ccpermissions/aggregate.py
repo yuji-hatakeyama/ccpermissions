@@ -22,14 +22,10 @@ _PRIORITY: Final[dict[Action, int]] = {"deny": 3, "ask": 2, "allow": 1}
 class AggregateResult:
     """The combined decision plus the optional reason text.
 
-    The CLI error paths also construct this shape directly (``ask`` with the
-    error string as `reason`) so the output formatter has a single input type.
-
     Attributes:
         action: The winning action across all command positions.
-        reason: Composed reason text, or ``None`` when the winner is ``allow``
-            or every contributor to the winning action was a pure
-            default-fallback (no matched rule, not unanalyzable).
+        reason: Composed reason text, or ``None`` when there is nothing to
+            surface — see `aggregate` for the cases that produce a reason.
     """
 
     action: Action

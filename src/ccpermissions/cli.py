@@ -60,8 +60,8 @@ def _extract_command(payload: Any) -> str:
 def _format_output(result: AggregateResult) -> str:
     """Build the PreToolUse `hookSpecificOutput` JSON string.
 
-    `allow` and pure-default winners carry no reason (`result.reason` is
-    ``None``) and emit none.
+    Emits ``permissionDecisionReason`` only when `result.reason` is not
+    ``None``; which outcomes carry a reason is the aggregator's policy.
 
     Args:
         result: The combined decision and (optional) reason.
