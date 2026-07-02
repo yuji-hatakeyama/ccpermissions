@@ -11,6 +11,7 @@ build/
 
 # pytest
 .pytest_cache/
+.coverage
 
 # IDE / OS
 .DS_Store
