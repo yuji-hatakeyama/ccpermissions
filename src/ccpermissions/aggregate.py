@@ -22,6 +22,9 @@ _PRIORITY: Final[dict[Action, int]] = {"deny": 3, "ask": 2, "allow": 1}
 class AggregateResult:
     """The combined decision plus the optional reason text.
 
+    The CLI error paths also construct this shape directly (``ask`` with the
+    error string as `reason`) so the output formatter has a single input type.
+
     Attributes:
         action: The winning action across all command positions.
         reason: Composed reason text, or ``None`` when the winner is ``allow``
@@ -58,10 +61,9 @@ def aggregate(
 
     entries: list[_Entry] = [_decide_one(c, rules, default) for c in commands]
     entries = _dedupe_wrapper_parents(entries)
-    # `max` is stable, so the first entry at the winning priority is the
-    # leftmost — the desired tie-breaker (preserve execution order).
-    winner: _Entry = max(entries, key=lambda e: _PRIORITY[e.decision.action])
-    winner_action: Action = winner.decision.action
+    winner_action: Action = max(
+        entries, key=lambda e: _PRIORITY[e.decision.action]
+    ).decision.action
     if winner_action == "allow":
         return AggregateResult(action=winner_action, reason=None)
 

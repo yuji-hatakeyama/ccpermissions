@@ -364,8 +364,8 @@ def load_merged() -> LoadResult:
 
     Both files are optional. Errors from either file are concatenated and
     returned via `LoadResult.error`; when any error occurs, `rules` is empty
-    and `default` is `"ask"`, so the caller can fall back uniformly without
-    branching on the error path.
+    and `default` is `"ask"`, so the outcome is fixed to ``ask`` and the
+    orchestrator can short-circuit to an `ask + error` output.
 
     Returns:
         The merged `LoadResult`. Project rules are placed after user rules

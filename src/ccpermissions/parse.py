@@ -145,7 +145,7 @@ def _emit_substitutions(
     inner AST is exposed by bashlex as ``.command`` on the substitution node.
     """
     for part in cmd_node.parts:
-        for sub in getattr(part, "parts", None) or ():
+        for sub in _children(part):
             kind: str | None = getattr(sub, "kind", None)
             if kind in ("commandsubstitution", "processsubstitution"):
                 _walk(sub.command, origin=parent_text, out=out)
