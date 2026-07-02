@@ -310,6 +310,18 @@ def test_config_error_drops_deny_rules(write_user_config):
     assert_decision(out, "ask", reason_contains="version")
 
 
+def test_missing_tool_input_falls_back_to_ask(write_user_config):
+    write_user_config("""
+        version: 1
+        rules:
+          - all: ['ls']
+            action: allow
+    """)
+    bad = json.dumps({"tool_name": "Bash"})
+    out = run_main(bad)
+    assert_decision(out, "ask", reason_contains="tool_input")
+
+
 def test_missing_command_field_falls_back_to_ask(write_user_config):
     write_user_config("""
         version: 1
