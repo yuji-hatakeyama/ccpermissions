@@ -287,6 +287,31 @@ def test_config_error_falls_back_to_ask_with_reason(write_user_config):
     assert_decision(out, "ask", reason_contains="version")
 
 
+def test_config_error_wins_when_command_is_unparseable(write_user_config):
+    """A broken config short-circuits before parsing: the config error is the
+    reason even for a command bashlex cannot analyze — never ``(unanalyzable)``."""
+    write_user_config("""
+        rules:
+          - all: ['ls']
+            action: allow
+    """)  # missing version
+    out = run_main(hook_input("case $x in esac"))
+    assert_decision(out, "ask", reason_contains=["ccpermissions.yaml", "version"])
+    assert "unanalyzable" not in out["hookSpecificOutput"]["permissionDecisionReason"]
+
+
+def test_config_error_drops_deny_rules(write_user_config):
+    """A broken config contributes no rules: even a deny rule that would match
+    the command is discarded, and the result is ``ask`` + the config error."""
+    write_user_config("""
+        rules:
+          - all: ['rm', '-rf']
+            action: deny
+    """)  # missing version
+    out = run_main(hook_input("rm -rf /"))
+    assert_decision(out, "ask", reason_contains=["ccpermissions.yaml", "version"])
+
+
 def test_missing_command_field_falls_back_to_ask(write_user_config):
     write_user_config("""
         version: 1
