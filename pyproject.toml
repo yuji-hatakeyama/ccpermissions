@@ -37,9 +37,14 @@ Issues = "https://github.com/yuji-hatakeyama/ccpermissions/issues"
 
 [dependency-groups]
 dev = [
-  "pytest==8.4.2",
+  "pytest==9.0.3",
   "ruff>=0.15.20",
 ]
+
+[tool.uv.dependency-groups]
+# pytest 9 (GHSA-6w46-j5rx-g56g fix) needs Python >= 3.10; dev-only, so the
+# package keeps supporting 3.9.
+dev = { requires-python = ">=3.10" }
 
 [tool.ruff]
 line-length = 90
