@@ -37,7 +37,7 @@ Issues = "https://github.com/yuji-hatakeyama/ccpermissions/issues"
 
 [dependency-groups]
 dev = [
-  "pytest==9.0.3",
+  "pytest==9.1.1",
   "ruff>=0.15.20",
 ]
 
